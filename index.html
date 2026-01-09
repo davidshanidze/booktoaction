@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BookToAction — От знаний к действиям</title>
+    <title>DoTheBook — От знаний к действиям</title>
     <style>
         * {
             margin: 0;
@@ -436,7 +436,7 @@
 <body>
     <div class="container">
         <div class="hero">
-            <div class="logo">BookToAction</div>
+            <div class="logo">DoTheBook</div>
             <h1>От знаний к действиям</h1>
             <p>Превращаем любую книгу в конкретный план действий за 30 секунд</p>
         </div>
@@ -510,12 +510,13 @@
         <div id="resultSection" class="result hidden"></div>
 
         <div class="footer">
-            BOOKTOACTION 2025
+            DOTHEBOOK 2025
         </div>
     </div>
 
     <script>
         const API_ENDPOINT = '/.netlify/functions/generate-plan';
+        const ANALYZE_ENDPOINT = '/.netlify/functions/analyze-book';
         
         let currentBook = '';
         let selectedContext = '';
@@ -529,8 +530,20 @@
                 return;
             }
 
-            currentBook = bookInput;
-            await showBookInfo(bookInput);
+            // Disable button while analyzing
+            const btn = document.getElementById('analyzeBtn');
+            btn.disabled = true;
+            btn.textContent = 'Анализирую...';
+
+            try {
+                currentBook = bookInput;
+                await showBookInfo(bookInput);
+            } catch (error) {
+                console.error('Error analyzing book:', error);
+                alert('Ошибка при анализе книги. Попробуйте ещё раз.');
+                btn.disabled = false;
+                btn.textContent = 'АНАЛИЗИРОВАТЬ КНИГУ';
+            }
         });
 
         // Show book info
@@ -540,6 +553,7 @@
 
             document.getElementById('bookTitle').textContent = `📚 ${bookTitle}`;
 
+            // Call AI to analyze the book
             const bookInfo = await getBookInfo(bookTitle);
             
             document.getElementById('bookDescription').textContent = bookInfo.description;
@@ -565,31 +579,28 @@
                 `;
                 examplesContainer.appendChild(div);
             });
+
+            // Re-enable button
+            const btn = document.getElementById('analyzeBtn');
+            btn.disabled = false;
+            btn.textContent = 'АНАЛИЗИРОВАТЬ КНИГУ';
         }
 
-        // Mock data
+        // Real AI analysis (replaces mock data)
         async function getBookInfo(bookTitle) {
-            await new Promise(resolve => setTimeout(resolve, 500));
+            const response = await fetch(ANALYZE_ENDPOINT, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ bookTitle })
+            });
 
-            return {
-                description: 'Эта книга про формирование привычек и изменение поведения',
-                popularQueries: [
-                    'Хочу начать бегать по утрам',
-                    'Бросить курить/соцсети',
-                    'Стать более продуктивным',
-                    'Читать каждый день'
-                ],
-                examples: [
-                    {
-                        name: 'James Clear (автор)',
-                        quote: 'Начал с 1 отжимания. Через год - 100 подряд'
-                    },
-                    {
-                        name: 'Tim Ferriss',
-                        quote: 'Правило: никогда не пропускать 2 раза'
-                    }
-                ]
-            };
+            if (!response.ok) {
+                throw new Error('Failed to analyze book');
+            }
+
+            return await response.json();
         }
 
         // Select query
